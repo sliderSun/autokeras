@@ -7,7 +7,7 @@ from autokeras.constant import Constant
 from autokeras.nn.loss_function import classification_loss, regression_loss
 from autokeras.nn.metric import Accuracy, MSE
 from autokeras.preprocessor import OneHotEncoder, ImageDataTransformer
-from autokeras.supervised import PortableDeepSupervised, DeepSupervised
+from autokeras.supervised import PortableDeepSupervised, DeepTaskSupervised
 from autokeras.utils import pickle_to_file, \
     read_csv_file, read_image, compute_image_resize_params, resize_image_data
 
@@ -77,7 +77,7 @@ def load_image_dataset(csv_file_path, images_path, parallel=True):
     return np.array(x), np.array(y)
 
 
-class ImageSupervised(DeepSupervised, ABC):
+class ImageSupervised(DeepTaskSupervised, ABC):
     """Abstract image supervised class.
 
     Attributes:
@@ -259,7 +259,7 @@ class ImageRegressor3D(ImageRegressor):
         super().__init__(**kwargs)
 
 
-class PortableImageSupervised(PortableDeepSupervised):
+class PortableImageSupervised(PortableDeepSupervised, ABC):
     def __init__(self, graph, y_encoder, data_transformer, resize_params, verbose=False, path=None):
         """Initialize the instance.
         Args:

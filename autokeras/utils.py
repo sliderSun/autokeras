@@ -135,14 +135,6 @@ def download_file(file_link, file_path):
                     sys.stdout.flush()
 
 
-def download_model(model_link, model_file_name):
-    temp_path = temp_path_generator()
-    ensure_dir(temp_path)
-    model_path = f'{temp_path}/{model_file_name}'
-    download_file(model_link, model_path)
-    return model_path
-
-
 def download_file_with_extract(file_link, file_path, extract_path):
     """Download the file specified in `file_link`, save to `file_path` and extract to the directory `extract_path`."""
     if not os.path.exists(extract_path):
@@ -153,46 +145,6 @@ def download_file_with_extract(file_link, file_path, extract_path):
         os.remove(file_path)
         print("extracted and removed downloaded zip file")
     print("file already extracted in the path %s" % extract_path)
-
-
-def get_confirm_token(response):
-    """If there is a warning when download is requested, return the token value. Otherwise, return None."""
-    for key, value in response.cookies.items():
-        if key.startswith('download_warning'):
-            return value
-
-    return None
-
-
-def save_response_content(response, destination):
-    """Save the HTTP GET response of the download request in the destination."""
-    chunk_size = 32768
-
-    with open(destination, "wb") as f:
-        for chunk in response.iter_content(chunk_size):
-            if chunk:
-                f.write(chunk)
-
-
-def download_file_from_google_drive(file_id, destination):
-    """Download a file with the specified Google Drive Id and save it to the destination."""
-    if not os.path.exists(destination):
-        print("Downloading file from Google Drive started.")
-
-        url = "https://docs.google.com/uc?export=download"
-
-        session = requests.Session()
-
-        response = session.get(url, params={'id': file_id}, stream=True)
-        token = get_confirm_token(response)
-
-        if token:
-            params = {'id': file_id, 'confirm': token}
-            response = session.get(url, params=params, stream=True)
-
-        save_response_content(response, destination)
-
-        print("Downloading file from Google Drive ended.")
 
 
 def assert_search_space(search_space):
@@ -354,7 +306,7 @@ def get_system():
     raise EnvironmentError('Unsupported environment')
 
 
-def download_file_from_google_drive(file_id, dest_path, overwrite=False):
+def download_file_from_google_drive(file_id, dest_path, verbose=False):
     """
     Downloads a shared file from google drive into a given folder.
     Optionally unzips it.
@@ -362,45 +314,36 @@ def download_file_from_google_drive(file_id, dest_path, overwrite=False):
     Refact from:
     https://github.com/ndrplz/google-drive-downloader/blob/master/google_drive_downloader/google_drive_downloader.py
 
-    Parameters
-    ----------
-    file_id: str
-        the file identifier.
-        You can obtain it from the sharable link.
-    dest_path: str
-        the destination where to save the downloaded file.
-        Must be a path (for example: './downloaded_file.txt')
-    overwrite: bool
-        optional, if True forces re-download and overwrite.
-    unzip: bool
-        optional, if True unzips a file.
-        If the file is not a zip file, ignores it.
-
-    Returns
-    -------
-    None
+    Args:
+        verbose:
+        file_id: str
+            the file identifier.
+            You can obtain it from the sharable link.
+        dest_path: str
+            the destination where to save the downloaded file.
+            Must be a path (for example: './downloaded_file.txt')
     """
 
     destination_directory = dirname(dest_path)
     if len(destination_directory) > 0 and not exists(destination_directory):
         makedirs(destination_directory)
 
-    if not exists(dest_path) or overwrite:
+    session = requests.Session()
 
-        session = requests.Session()
-
+    if verbose:
         print('Downloading file with Google ID {} into {}... '.format(file_id, dest_path), end='')
-        stdout.flush()
+    stdout.flush()
 
-        response = session.get(Constant.DOWNLOAD_URL, params={'id': file_id}, stream=True)
+    response = session.get(Constant.DOWNLOAD_URL, params={'id': file_id}, stream=True)
 
-        token = get_confirm_token(response)
-        if token:
-            params = {'id': file_id, 'confirm': token}
-            response = session.get(Constant.DOWNLOAD_URL, params=params, stream=True)
+    token = get_confirm_token(response)
+    if token:
+        params = {'id': file_id, 'confirm': token}
+        response = session.get(Constant.DOWNLOAD_URL, params=params, stream=True)
 
-        save_response_content(response, dest_path)
-        print('Done.')
+    save_response_content(response, dest_path)
+    if verbose:
+        print('Download completed.')
 
 
 def get_confirm_token(response):

@@ -5,23 +5,22 @@
 # modified by: Wuyang Chen, Haifeng Jin
 # ----------------------------------
 
-from autokeras.pretrained.base import Pretrained
-from autokeras.utils import download_model, get_device
-from autokeras.constant import Constant
-import numpy as np
-import cv2
-from matplotlib import pyplot as plt
-
+import os
 from itertools import product as product
 from math import sqrt as sqrt
 
+import cv2
+import numpy as np
 import torch
-from torch.nn import functional
+from matplotlib import pyplot as plt
 from torch import nn as nn
 from torch.autograd import Variable, Function
+from torch.nn import functional
 from torch.nn import init as init
 
-import os
+from autokeras.constant import Constant
+from autokeras.pretrained.base import Pretrained
+from autokeras.utils import get_device, temp_path_generator, ensure_dir, download_file_from_google_drive
 
 """VOC Dataset Classes
 
@@ -485,10 +484,26 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
 
 
 class ObjectDetector(Pretrained):
+
     def __init__(self):
         super(ObjectDetector, self).__init__()
         self.model = None
         self.device = get_device()
+        # load net
+        num_classes = len(VOC_CLASSES) + 1  # +1 for background
+        self.model = self._build_ssd('test', 300, num_classes)  # initialize SSD
+        if self.device.startswith("cuda"):
+            self.model.load_state_dict(torch.load(self.local_paths[0]))
+        else:
+            self.model.load_state_dict(torch.load(self.local_paths[0], map_location=lambda storage, loc: storage))
+        self.model.eval()
+        print('Finished loading model!')
+
+        self.model = self.model.to(self.device)
+
+    @property
+    def _google_drive_files(self):
+        return Constant.OBJECT_DETECTOR_MODELS
 
     def _build_ssd(self, phase, size=300, num_classes=21):
         if phase != "test" and phase != "train":
@@ -517,22 +532,7 @@ class ObjectDetector(Pretrained):
                                           mbox[str(size)], num_classes)
         return SSD(phase, size, base_, extras_, head_, num_classes, self.device)
 
-    def load(self, model_path=None):
-        if model_path is None:
-            model_path = download_model(Constant.OBJECT_DETECTOR['MODEL_LINK'], Constant.OBJECT_DETECTOR['MODEL_NAME'])
-        # load net
-        num_classes = len(VOC_CLASSES) + 1  # +1 for background
-        self.model = self._build_ssd('test', 300, num_classes)  # initialize SSD
-        if self.device.startswith("cuda"):
-            self.model.load_state_dict(torch.load(model_path))
-        else:
-            self.model.load_state_dict(torch.load(model_path, map_location=lambda storage, loc: storage))
-        self.model.eval()
-        print('Finished loading model!')
-
-        self.model = self.model.to(self.device)
-
-    def predict(self, img_path, output_file_path=None):
+    def predict(self, input_data, output_file_path=None):
         """
         
         Returns:
@@ -543,7 +543,7 @@ class ObjectDetector(Pretrained):
 
         dataset_mean = (104, 117, 123)
 
-        image = cv2.imread(img_path, cv2.IMREAD_COLOR)
+        image = cv2.imread(input_data, cv2.IMREAD_COLOR)
         height, width, _ = image.shape
         rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         x = base_transform(rgb_image, 300, dataset_mean)
@@ -567,13 +567,13 @@ class ObjectDetector(Pretrained):
                 pt = (detections[0, i, j, 1:] * scale).cpu().numpy()
                 # result = ((pt[0], pt[1]), (pt[2] - pt[0] + 1, pt[3] - pt[1] + 1), label_name, score)
                 result = {
-                          "left": max(int(np.round(pt[0])), 0),
-                          "top": max(int(np.round(pt[1])), 0),
-                          "width": min(int(np.round(pt[2] - pt[0] + 1)), width),
-                          "height": min(int(np.round(pt[3] - pt[1] + 1)), height),
-                          "category": label_name,
-                          "confidence": score
-                         }
+                    "left": max(int(np.round(pt[0])), 0),
+                    "top": max(int(np.round(pt[1])), 0),
+                    "width": min(int(np.round(pt[2] - pt[0] + 1)), width),
+                    "height": min(int(np.round(pt[3] - pt[1] + 1)), height),
+                    "category": label_name,
+                    "confidence": score
+                }
                 results.append(result)
                 j += 1
 
@@ -601,7 +601,7 @@ class ObjectDetector(Pretrained):
                     j += 1
             plt.axis('off')
             plt.tight_layout()
-            save_name = img_path.split('/')[-1]
+            save_name = input_data.split('/')[-1]
             save_name = save_name.split('.')
             save_name = '.'.join(save_name[:-1]) + "_prediction." + save_name[-1]
             plt.savefig(os.path.join(output_file_path, save_name), bbox_inches='tight', pad_inches=0)

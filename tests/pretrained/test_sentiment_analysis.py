@@ -1,7 +1,8 @@
-from autokeras.pretrained.text_sentiment import TextSentiment
+from autokeras.pretrained.text_classifier import SentimentAnalysis
+
 
 def test_sentiment_analysis():
-    sentiment_analyzer = TextSentiment()
+    sentiment_analyzer = SentimentAnalysis()
 
     positive_polarity = sentiment_analyzer.predict("The model is working really well.")
     if positive_polarity <= 0.5:

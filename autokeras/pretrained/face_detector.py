@@ -3,17 +3,17 @@
 import os
 
 import cv2
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
-import numpy as np
 from torch.autograd.variable import Variable
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 
 from autokeras.constant import Constant
 from autokeras.pretrained.base import Pretrained
-from autokeras.utils import download_model, get_device
+from autokeras.utils import get_device, download_file_from_google_drive, temp_path_generator, ensure_dir
 
 
 def weights_init(m):
@@ -273,33 +273,22 @@ class FaceDetector(Pretrained):
     """A class to predict faces using the MTCNN pre-trained model.
     """
 
-    def __init__(self):
-        super(FaceDetector, self).__init__()
-
-        pnet, rnet, onet = self.load()
-        self.device = get_device()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        pnet, rnet, onet = (torch.load(path, map_location=lambda storage, loc: storage) for path in self.local_paths)
 
         self.pnet_detector = PNet()
-        if torch.cuda.is_available():
-            self.pnet_detector.load_state_dict(torch.load(pnet))
-        else:
-            self.pnet_detector.load_state_dict(torch.load(pnet, map_location=lambda storage, loc: storage))
+        self.pnet_detector.load_state_dict(pnet)
         self.pnet_detector = self.pnet_detector.to(self.device)
         self.pnet_detector.eval()
 
         self.rnet_detector = RNet()
-        if torch.cuda.is_available():
-            self.rnet_detector.load_state_dict(torch.load(rnet))
-        else:
-            self.rnet_detector.load_state_dict(torch.load(rnet, map_location=lambda storage, loc: storage))
+        self.rnet_detector.load_state_dict(rnet)
         self.rnet_detector = self.rnet_detector.to(self.device)
         self.rnet_detector.eval()
 
         self.onet_detector = ONet()
-        if torch.cuda.is_available():
-            self.onet_detector.load_state_dict(torch.load(onet))
-        else:
-            self.onet_detector.load_state_dict(torch.load(onet, map_location=lambda storage, loc: storage))
+        self.onet_detector.load_state_dict(onet)
         self.onet_detector = self.onet_detector.to(self.device)
         self.onet_detector.eval()
 
@@ -308,10 +297,9 @@ class FaceDetector(Pretrained):
         self.threshold = [0.6, 0.7, 0.7]
         self.scale_factor = 0.709
 
-    def load(self, model_path=None):
-        model_paths = [download_model(model_link, file_name) for model_link, file_name in zip(
-            Constant.FACE_DETECTOR['MODEL_LINKS'], Constant.FACE_DETECTOR['MODEL_NAMES'])]
-        return model_paths
+    @property
+    def _google_drive_files(self):
+        return Constant.FACE_DETECTOR_MODELS
 
     def predict(self, img_path, output_file_path=None):
         """Predicts faces in an image.
@@ -351,8 +339,7 @@ class FaceDetector(Pretrained):
             feed_imgs = torch.stack(feed_imgs)
             feed_imgs = Variable(feed_imgs)
 
-            if torch.cuda.is_available():
-                feed_imgs = feed_imgs.cuda()
+            feed_imgs = feed_imgs.to(self.device)
 
             cls_map, reg = self.pnet_detector(feed_imgs)
 
@@ -427,8 +414,7 @@ class FaceDetector(Pretrained):
             cropped_ims_tensors.append(crop_im_tensor)
         feed_imgs = Variable(torch.stack(cropped_ims_tensors))
 
-        if torch.cuda.is_available():
-            feed_imgs = feed_imgs.to(self.device)
+        feed_imgs = feed_imgs.to(self.device)
 
         cls_map, reg = self.rnet_detector(feed_imgs)
 
@@ -501,8 +487,7 @@ class FaceDetector(Pretrained):
             cropped_ims_tensors.append(crop_im_tensor)
         feed_imgs = Variable(torch.stack(cropped_ims_tensors))
 
-        if torch.cuda.is_available():
-            feed_imgs = feed_imgs.to(self.device)
+        feed_imgs = feed_imgs.to(self.device)
 
         cls_map, reg, landmark = self.onet_detector(feed_imgs)
 
@@ -561,7 +546,7 @@ class FaceDetector(Pretrained):
             align_landmark_topy + keep_landmark[:, 7] * bh,
             align_landmark_topx + keep_landmark[:, 8] * bw,
             align_landmark_topy + keep_landmark[:, 9] * bh,
-            ])
+        ])
 
         landmark_align = landmark.T
 

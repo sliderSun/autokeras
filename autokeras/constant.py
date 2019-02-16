@@ -1,3 +1,8 @@
+from collections import namedtuple
+
+GoogleDriveFile = namedtuple('GoogleDriveFile', ['google_drive_id', 'local_name'])
+
+
 class Constant:
     # Data
 
@@ -63,28 +68,18 @@ class Constant:
 
     PRE_TRAIN_DETECTION_FILE_LINK = "https://s3.amazonaws.com/amdegroot-models/ssd300_mAP_77.43_v2.pth"
 
-    PRE_TRAIN_VOICE_GENERATOR_MODEL_GOOGLE_DRIVE_ID = "1E-B92LZz4dgg8DU81D6pyhOzM9yvvBTj"
-    PRE_TRAIN_VOICE_GENERATOR_MODEL_NAME = "20180505_deepvoice3_checkpoint_step000640000.pth"
-    PRE_TRAIN_VOICE_GENERATOR_SAVE_FILE_DEFAULT_NAME = "test.wav"
-
-    # constants for pretrained model of face detection
-    FACE_DETECTOR = {
-        'MODEL_LINKS': [
-            'https://raw.githubusercontent.com/kuaikuaikim/DFace/master/model_store/pnet_epoch.pt',
-            'https://raw.githubusercontent.com/kuaikuaikim/DFace/master/model_store/rnet_epoch.pt',
-            'https://raw.githubusercontent.com/kuaikuaikim/DFace/master/model_store/onet_epoch.pt'
-        ],
-        'MODEL_NAMES': [
-            'pnet.pt',
-            'rnet.pt',
-            'onet.pt'
-        ]
-    }
-
-    OBJECT_DETECTOR = {
-        'MODEL_LINK': 'https://s3.amazonaws.com/amdegroot-models/ssd300_mAP_77.43_v2.pth',
-        'MODEL_NAME': 'object_detection_pretrained.pth'
-    }
+    VOICE_GENERATOR_MODELS = [
+        GoogleDriveFile(google_drive_id='1E-B92LZz4dgg8DU81D6pyhOzM9yvvBTj', local_name='vg.pth')]
+    FACE_DETECTOR_MODELS = [
+        GoogleDriveFile(google_drive_id='1QJWKpAHRrAjrYPl6hQNDaoyBjoa_LRgz', local_name='pnet.pt'),
+        GoogleDriveFile(google_drive_id='10aCiR393E6TLkp9KPPl4JhZamYqUVBO1', local_name='rnet.pt'),
+        GoogleDriveFile(google_drive_id='1RRBtPlzw46peS-A8pyYGsPRHHFIUrSVV', local_name='onet.pt')]
+    OBJECT_DETECTOR_MODELS = [
+        GoogleDriveFile(google_drive_id='1QGG1trfj-z5_2OGNoSarUB4wx81cG-sa', local_name='oo.pth')]
+    SENTIMENT_ANALYSIS_MODELS = [
+        GoogleDriveFile(google_drive_id='1flRlQjfIa2toQ6HNmInhqrh4NuxGh8pT', local_name='sa.pth')]
+    TOPIC_CLASSIFIER_MODELS = [
+        GoogleDriveFile(google_drive_id='1U7C3xPid1ZvBKpkfW9KikrmNui0yJqnk', local_name='tc.pth')]
 
     # Image Resize
 
